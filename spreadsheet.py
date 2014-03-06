@@ -33,10 +33,8 @@ class Cell(object):
         return self.references
 
     def extract_references(self):
-        return re.findall(self.cell_id_pattern, self.expression)
-
-    def validate(self):
-        pass
+        self.references = re.findall(self.cell_id_pattern, self.expression)
+        return self.references
 
     def get_value(self):
         return self.value
@@ -46,6 +44,8 @@ class Cell(object):
             self.value = float(eval(self.expression, {"__builtins__":None}, ref_values))
         except Exception as e:
             raise InvalidExpressionException(e)
+
+        return self.value
 
 class Spreadsheet(object):
 
@@ -92,8 +92,7 @@ class Spreadsheet(object):
             ref_values[ref_cell_id] = self.get_value_from_id(ref_cell_id, visited)
             visited.discard(ref_cell_id)
 
-        cell.evaluate(ref_values)
-        return cell.get_value()
+        return cell.evaluate(ref_values)
 
     def get_cell_from_id(self, cell_id):
         try:
