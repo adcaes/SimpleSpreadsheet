@@ -24,17 +24,16 @@ class Cell(object):
 
     def __init__(self, cell_id, expression):
         self.expression = expression
+        # TODO: Delete cell_id from here?
         self.cell_id = cell_id
         self.references = self.extract_references()
         self.value = None
-
-        self.evaluate()
 
     def get_references(self):
         return self.references
 
     def extract_references(self):
-        re.findall(self.cell_id_pattern, self.expression)
+        return re.findall(self.cell_id_pattern, self.expression)
 
     def validate(self):
         pass
@@ -44,9 +43,9 @@ class Cell(object):
 
     def evaluate(self, ref_values):
         try:
-            self.value = eval(self.expression, {"__builtins__":None}, ref_values)
+            self.value = float(eval(self.expression, {"__builtins__":None}, ref_values))
         except Exception as e:
-            raise InvalidExpressionException()
+            raise InvalidExpressionException(e)
 
 class Spreadsheet(object):
 
@@ -62,15 +61,15 @@ class Spreadsheet(object):
 
             self.data.append(row)
 
-    def build_cell_id(self, row, cloumn):
+    def build_cell_id(self, row, column):
         try:
-            return string.uppercase[row] + str(column)
-        except:
-            raise InvalidCellIdException()
+            return string.uppercase[row] + str(column + 1)
+        except Exception as e:
+            raise InvalidCellIdException(e)
 
     def get_value(self, row, column):
         # ROW and COL are 0 or 1 based? Assuming 0
-        cell_id = build_cell_id(row, cloumn)
+        cell_id = self.build_cell_id(row, column)
         return self.get_value_from_id(cell_id)
 
     def get_value_from_id(self, cell_id, visited=None):
@@ -82,24 +81,74 @@ class Spreadsheet(object):
         if visited is None:
             visited = {cell_id}
 
-        ref_values = []
+        ref_values = {}
         refs = cell.get_references()
         for ref_cell_id in refs:
 
             if ref_cell_id in visited:
-                raise CircularReferenceException()
+                raise CircularReferenceException("%s referenced from %s" % (ref_cell_id, cell_id))
 
             visited.add(ref_cell_id)
             ref_values[ref_cell_id] = self.get_value_from_id(ref_cell_id, visited)
             visited.discard(ref_cell_id)
 
-        return cell.evaluate(ref_values).get_value()
+        cell.evaluate(ref_values)
+        return cell.get_value()
 
     def get_cell_from_id(self, cell_id):
         try:
-            return self.data[cell_id[:1]][cell_id[1:]]
-        except:
-            raise InvalidCellIdException()
+            row_num = ord(cell_id[:1]) - ord('A')
+            col_num = int(cell_id[1:]) - 1
+            return self.data[row_num][col_num]
+        except Exception as e:
+            raise InvalidCellIdException(e)
 
     def set_value(row, column, value):
         pass
+
+
+import unittest
+
+
+class TestSpreadsheet(unittest.TestCase):
+
+    def setUp(self):
+        self.basic_data = []
+        for r in range(ROWS):
+            self.basic_data.append([str(r*COLUMNS + c) for c in range(COLUMNS)])
+
+    def test_initialize_and_access_spreadsheet_without_references(self):
+        ss = Spreadsheet(self.basic_data)
+        for i in range(ROWS):
+            for j in range(COLUMNS):
+                continue
+                self.assertEquals(ss.get_value(i, j), float(self.basic_data[i][j]))
+
+    def test_initialize_and_access_spreadsheet_with_references(self):
+        computed_fib = [0, 1, 1, 2, 3, 5, 8, 13, 21, 34]
+        self.basic_data[0][0] = '1'
+        self.basic_data[0][1] = '1'
+        for j in range(2, COLUMNS):
+            self.basic_data[0][j] = "A{} + A{}".format(str(j+1-2), str(j+1-1))
+
+        ss = Spreadsheet(self.basic_data)
+        for j in range(COLUMNS):
+            self.assertEquals(ss.get_value(0, j), computed_fib[j])
+
+    def test_get_invalid_cell(self):
+        pass
+
+    def test_invalid_cell_reference_in_expression(self):
+        pass
+
+    def test_circular_reference_in_expression(self):
+        pass
+
+    def test_auto_reference_in_expression(self):
+        pass
+
+class TestCell():
+    pass
+
+if __name__ == '__main__':
+    unittest.main()
