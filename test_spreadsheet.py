@@ -1,5 +1,5 @@
 import unittest
-from spreadsheet import Spreadsheet, Cell, ROWS, COLUMNS
+from spreadsheet import Spreadsheet, Cell
 from spreadsheet import InvalidCellIdException, CircularReferenceException
 
 
@@ -7,26 +7,26 @@ class TestSpreadsheet(unittest.TestCase):
 
     def setUp(self):
         self.basic_data = []
-        for r in range(ROWS):
-            self.basic_data.append([str(r*COLUMNS + c) for c in range(COLUMNS)])
+        for r in range(Spreadsheet.ROWS):
+            self.basic_data.append([str(r*Spreadsheet.COLUMNS + c) for c in range(Spreadsheet.COLUMNS)])
 
 
 class TestInitializeSpreadsheet(TestSpreadsheet):
 
     def test_initialize_and_access_spreadsheet_without_references(self):
         ss = Spreadsheet(self.basic_data)
-        for i in range(ROWS):
-            for j in range(COLUMNS):
+        for i in range(Spreadsheet.ROWS):
+            for j in range(Spreadsheet.COLUMNS):
                 continue
                 self.assertEquals(ss.get_value(i, j), float(self.basic_data[i][j]))
 
     def test_initialize_and_access_spreadsheet_with_references(self):
         self.basic_data[0][0] = "10"
-        for j in range(1, COLUMNS):
+        for j in range(1, Spreadsheet.COLUMNS):
             self.basic_data[0][j] = "A1"
 
         ss = Spreadsheet(self.basic_data)
-        for j in range(COLUMNS):
+        for j in range(Spreadsheet.COLUMNS):
             self.assertEquals(ss.get_value(0, j), 10)
 
     def test_initialize_spreadsheet_with_cell_referencing_non_existing_cell_raises_exception(self):
@@ -62,11 +62,11 @@ class TestGetValue(TestSpreadsheet):
         computed_fib = [0, 1, 1, 2, 3, 5, 8, 13, 21]
         self.basic_data[0][0] = '0'
         self.basic_data[0][1] = '1'
-        for j in range(2, COLUMNS):
+        for j in range(2, Spreadsheet.COLUMNS):
             self.basic_data[0][j] = "A{} + A{}".format(str(j+1-2), str(j+1-1))
 
         ss = Spreadsheet(self.basic_data)
-        for j in range(COLUMNS - 1, -1, -1):
+        for j in range(Spreadsheet.COLUMNS - 1, -1, -1):
             self.assertEquals(ss.get_value(0, j), computed_fib[j])
 
 
@@ -89,15 +89,15 @@ class TestSetValue(TestSpreadsheet):
 
     def test_set_value_with_dependent_cells(self):
         self.basic_data[0][0] = '0'
-        for j in range(1, COLUMNS):
+        for j in range(1, Spreadsheet.COLUMNS):
             self.basic_data[0][j] = 'A%d + 1' % j
 
         ss = Spreadsheet(self.basic_data)
-        for j in range(COLUMNS):
+        for j in range(Spreadsheet.COLUMNS):
             ss.get_value(0, j)
 
         ss.set_value(0, 0, '1')
-        for j in range(COLUMNS - 1, -1, -1):
+        for j in range(Spreadsheet.COLUMNS - 1, -1, -1):
             self.assertEquals(ss.get_value(0, j), j+1)
 
     def test_set_value_modifying_references(self):

@@ -1,9 +1,6 @@
 import re
 import string
 
-ROWS = 26
-COLUMNS = 9
-
 class SpreadSheetException(Exception):
     pass
 
@@ -37,7 +34,6 @@ class Cell(object):
         self.dependent_cells.add(cell)
 
     def remove_dependent_cell(self, cell):
-        import ipdb; ipdb.set_trace()
         self.dependent_cells.remove(cell)
 
     def get_dependent_cells(self):
@@ -75,15 +71,17 @@ class Cell(object):
 
 class Spreadsheet(object):
 
+    ROWS = 26
+    COLUMNS = 9
+
     def __init__(self, spreadsheet_cells):
         '''
-        Initialize the spreadsheet. All provided values should evaluate to a float.
-        Each cell stores an expresssion and the list of cells that reference it.
+        Initialize the spreadsheet. All values should be strings.
         Cell validation is not performed until the value of the cell is calculated.
         '''
 
-        if not spreadsheet_cells or len(spreadsheet_cells) != ROWS \
-             or len(spreadsheet_cells[0]) != COLUMNS:
+        if not spreadsheet_cells or len(spreadsheet_cells) != self.ROWS \
+             or len(spreadsheet_cells[0]) != self.COLUMNS:
             raise SpreadSheetException("Invalid input data")
 
         self.cells = []
@@ -95,15 +93,18 @@ class Spreadsheet(object):
         self._fill_cell_dependencies()
 
     def get_value(self, row, column):
+        '''
+        Return the cell value, uses 0 based row and col number.
+        '''
         self._validate_cell_index(row, column)
         cell = self.cells[row][column]
         return self._get_value_from_cell(cell)
 
     def set_value(self, row, column, value):
         '''
-        Update the expression stored in the cell.
-        Updates the referece graph.
-        Sets to None the computed values of all the dependent cells.
+        Update the expression stored in the cell, uses 0 based row and col number.
+        Updates the referece graph and sets to None the computed
+        values of all the dependent cells.
         '''
 
         self._validate_cell_index(row, column)
@@ -137,7 +138,7 @@ class Spreadsheet(object):
                 self._set_dependent_cells_value_to_none(dep_cell)
 
     def _validate_cell_index(self, row, column):
-        if row < 0 or row >= ROWS or column < 0 or column >= COLUMNS:
+        if row < 0 or row >= self.ROWS or column < 0 or column >= self.COLUMNS:
             raise InvalidCellIdException('Row:%d Col:%d' % (row, column))
 
     def _build_cell_id(self, row, column):
