@@ -24,7 +24,7 @@ class Cell(object):
     def __init__(self, cell_id, expression):
         self.cell_id = cell_id
         self.expression = expression
-        self.dependent_cells = []
+        self.dependent_cells = set()
         self.value = None
 
     def get_references(self):
@@ -34,7 +34,10 @@ class Cell(object):
         return re.findall(self._cell_id_pattern, self.expression)
 
     def add_dependent_cell(self, cell):
-        self.dependent_cells.append(cell)
+        self.dependent_cells.add(cell)
+
+    def remove_dependent_cell(self, cell):
+        self.dependent_cells.remove(cell)
 
     def get_dependent_cells(self):
         return self.dependent_cells
@@ -51,6 +54,8 @@ class Cell(object):
 
     def evaluate(self, ref_values):
         try:
+            # For security reasons, eval is called with an empty globals dict and
+            # a locals dict only containing the referenced cells values.
             val = eval(self.expression, {"__builtins__":None}, ref_values)
             self.value = float(val)
         except Exception as e:
@@ -58,8 +63,14 @@ class Cell(object):
 
         return self.value
 
+    def get_expression(self):
+        return self.expression
+
     def __repr__(self):
         return '<Cell: %s>' % self.expression
+
+    def __hash__(self):
+        return hash(self.cell_id)
 
 class Spreadsheet(object):
 
@@ -70,13 +81,17 @@ class Spreadsheet(object):
         Cell validation is not performed until the value of the cell is calculated.
         '''
 
+        if not spreadsheet_cells or len(spreadsheet_cells) != ROWS \
+             or len(spreadsheet_cells[0]) != COLUMNS:
+            raise SpreadSheetException("Invalid input data")
+
         self.cells = []
         for i, raw_row in enumerate(spreadsheet_cells):
             row = [Cell(self._build_cell_id(i, j), raw_cell)
                    for (j, raw_cell) in enumerate(raw_row)]
             self.cells.append(row)
 
-        self._build_reference_graph()
+        self._fill_cell_dependencies()
 
     def get_value(self, row, column):
         self._validate_cell_index(row, column)
@@ -86,21 +101,33 @@ class Spreadsheet(object):
     def set_value(self, row, column, value):
         '''
         Update the expression stored in the cell.
+        Updates the referece graph.
         Sets to None the computed values of all the dependent cells.
         '''
 
         self._validate_cell_index(row, column)
         cell = self.cells[row][column]
-        cell.update_expression(value)
-        self._set_dependent_cells_value_to_none(cell)
+        if cell.get_value() is not None:
+            self._set_dependent_cells_value_to_none(cell)
 
-    def _build_reference_graph(self):
+        self._remove_cell_from_referenced_cells(cell)
+        cell.update_expression(value)
+        self._add_cell_to_referenced_cells(cell)
+
+    def _fill_cell_dependencies(self):
         for row in self.cells:
             for cell in row:
+                self._add_cell_to_referenced_cells(cell)
 
-                for ref in cell.get_references():
-                    self._get_cell_from_id(ref) \
-                        .add_dependent_cell(cell)
+    def _add_cell_to_referenced_cells(self, cell):
+        for ref_cell_id in cell.get_references():
+            self._get_cell_from_id(ref_cell_id) \
+                .add_dependent_cell(cell)
+
+    def _remove_cell_from_referenced_cells(self, cell):
+        for ref_cell_id in cell.get_references():
+            self._get_cell_from_id(ref_cell_id) \
+                .remove_dependent_cell(cell)
 
     def _set_dependent_cells_value_to_none(self, cell):
         for dep_cell in cell.get_dependent_cells():

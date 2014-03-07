@@ -21,20 +21,23 @@ class TestInitializeSpreadsheet(TestSpreadsheet):
                 self.assertEquals(ss.get_value(i, j), float(self.basic_data[i][j]))
 
     def test_initialize_and_access_spreadsheet_with_references(self):
-        computed_fib = [0, 1, 1, 2, 3, 5, 8, 13, 21, 34]
-        self.basic_data[0][0] = '0'
-        self.basic_data[0][1] = '1'
-        for j in range(2, COLUMNS):
-            self.basic_data[0][j] = "A{} + A{}".format(str(j+1-2), str(j+1-1))
+        self.basic_data[0][0] = "10"
+        for j in range(1, COLUMNS):
+            self.basic_data[0][j] = "A1"
 
         ss = Spreadsheet(self.basic_data)
         for j in range(COLUMNS):
-            self.assertEquals(ss.get_value(0, j), computed_fib[j])
+            self.assertEquals(ss.get_value(0, j), 10)
+
+    def test_initialize_spreadsheet_with_cell_referencing_non_existing_cell_raises_exception(self):
+        self.basic_data[0][0] = 'A40'
+        with self.assertRaises(InvalidCellIdException):
+            Spreadsheet(self.basic_data)
 
 
 class TestGetValue(TestSpreadsheet):
 
-    def test_get_invalid_cell_raises_exception(self):
+    def test_get_non_existing_cell_raises_exception(self):
         ss = Spreadsheet(self.basic_data)
         with self.assertRaises(InvalidCellIdException):
             ss.get_value(0, -1)
@@ -42,23 +45,29 @@ class TestGetValue(TestSpreadsheet):
         with self.assertRaises(InvalidCellIdException):
             ss.get_value(29, 1)
 
-    def test_invalid_cell_reference_in_expression_raises_exception(self):
-        self.basic_data[0][0] = 'A40'
-        with self.assertRaises(InvalidCellIdException):
-            Spreadsheet(self.basic_data)
-
-    def test_circular_reference_in_expression(self):
+    def test_get_cell_with_circular_reference_raises_exception(self):
         self.basic_data[0][0] = 'A2'
         self.basic_data[0][1] = 'A1'
         ss = Spreadsheet(self.basic_data)
         with self.assertRaises(CircularReferenceException):
             ss.get_value(0, 0)
 
-    def test_auto_reference_in_expression(self):
+    def test_get_cell_with_auto_reference_raises_exception(self):
         self.basic_data[0][0] = 'A1'
         ss = Spreadsheet(self.basic_data)
         with self.assertRaises(CircularReferenceException):
             ss.get_value(0, 0)
+
+    def test_get_cells_with_references(self):
+        computed_fib = [0, 1, 1, 2, 3, 5, 8, 13, 21]
+        self.basic_data[0][0] = '0'
+        self.basic_data[0][1] = '1'
+        for j in range(2, COLUMNS):
+            self.basic_data[0][j] = "A{} + A{}".format(str(j+1-2), str(j+1-1))
+
+        ss = Spreadsheet(self.basic_data)
+        for j in range(COLUMNS - 1, -1, -1):
+            self.assertEquals(ss.get_value(0, j), computed_fib[j])
 
 
 class TestSetValue(TestSpreadsheet):
@@ -81,16 +90,26 @@ class TestSetValue(TestSpreadsheet):
     def test_set_value_with_dependent_cells(self):
         self.basic_data[0][0] = '0'
         for j in range(1, COLUMNS):
-            self.basic_data[0][j] = 'A%d+1' % j
+            self.basic_data[0][j] = 'A%d + 1' % j
 
         ss = Spreadsheet(self.basic_data)
         for j in range(COLUMNS):
             ss.get_value(0, j)
 
         ss.set_value(0, 0, '1')
-        for j in range(COLUMNS):
+        for j in range(COLUMNS - 1, -1, -1):
             self.assertEquals(ss.get_value(0, j), j+1)
 
+    def test_set_value_modifying_references(self):
+        self.basic_data[0][0] = 'A2'
+        self.basic_data[1][0] = 'A1'
+        ss = Spreadsheet(self.basic_data)
+        self.assertEquals(ss.get_value(0, 0), float(self.basic_data[0][1]))
+        self.assertEquals(ss.get_value(1, 0), float(self.basic_data[0][1]))
+
+        ss.set_value(0, 0, 'A3')
+        self.assertEquals(ss.get_value(0, 0), float(self.basic_data[0][2]))
+        self.assertEquals(ss.get_value(1, 0), float(self.basic_data[0][2]))
 
 class TestCell(unittest.TestCase):
 
@@ -103,14 +122,14 @@ class TestCell(unittest.TestCase):
         self.assertEquals(cell.get_references(), ['A1', 'B14', 'C23'])
 
     def test_evaluate_arithmetic_expressions_without_references(self):
-        cell = Cell('C1', '1./2 + 2.5 - 1.25')
+        cell = Cell('C1', '(1./2 + 2.5 - 1.25)*0.5')
         val = cell.evaluate({})
-        self.assertEquals(val, 1.75)
+        self.assertEquals(val, 0.875)
 
     def test_evaluate_arithmetic_expressions_with_references(self):
-        cell = Cell('C1', '1./A1 + 2.5 - A2')
+        cell = Cell('C1', '(1./A1 + 2.5 - A2)*0.5')
         val = cell.evaluate({'A1': 2, 'A2': 1.25})
-        self.assertEquals(val, 1.75)
+        self.assertEquals(val, 0.875)
 
 if __name__ == '__main__':
     unittest.main()
