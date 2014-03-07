@@ -37,6 +37,7 @@ class Cell(object):
         self.dependent_cells.add(cell)
 
     def remove_dependent_cell(self, cell):
+        import ipdb; ipdb.set_trace()
         self.dependent_cells.remove(cell)
 
     def get_dependent_cells(self):
