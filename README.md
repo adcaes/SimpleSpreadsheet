@@ -1,7 +1,7 @@
 Simple Spreadsheet
 ==================
 
-Simple implementation of a 26x9 spreadsheet. The spreadsheet can evaluate mathematical expressions containing references to other cells.
+Simple implementation of CLI based spreadsheet. The spreadsheet can evaluate mathematical expressions containing references to other cells.
 
 The provided mathematical expressions will be evaluated using Python eval built-in function.
 Any mathematical expression supported by the Python interpreter is allowed. This includes expressions with decimal and integer values, mathematical operators (+, -, *, /), and parenthesis.
@@ -58,21 +58,3 @@ In the worst case this will require computing the value of all the other cells i
 
 The cost of setting the value of a cell is constant if no other cell references it or the value of the cell hasn't been computed.
 Otherwise, the cost is that of setting to None the value of all dependent cells that have been computed. In the worst case this will mean setting to None the value of all the cells in the spreadsheet.
-
-
-## Improvements
-
-### Handle empty cells
-
-Support initializing an empty spreadsheet and apply set_value to it. For sparse spreadsheets though, the current design would be inefficient, as it would store a lot of empty cell instances.
-To avoid this issue, the cells could be stored using a hash map instead of a matrix, and only non-empty cells will be stored in the hash map.
-
-### Handle dynamically resizable spreadsheets
-
-Be able to resize the spreadsheet size. Would be simple to support adding new rows, just would need a small fix for identifiyng cells at rows bigger than Z.
-Adding new columns with the current data structure would be inefficient.
-
-### Parallelize
-
-Compute referenced cell values/update dependent cells in parallel using threads.
-In Python though, due to the GIL, threads are not a good option for CPU bound tasks.
